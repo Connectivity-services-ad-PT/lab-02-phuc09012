@@ -1,8 +1,11 @@
 openapi: 3.1.0
 info:
   title: Smart Campus - Camera Stream Service (Product A)
-  description: API cung cấp dịch vụ quản lý thiết bị Camera và khởi tạo luồng livestream hình ảnh phục vụ các module xử lý AI trong phân hiệu trường học.
+  description: API cung cấp dịch vụ quản lý thiết bị Camera và khởi tạo luồng livestream hình ảnh phục vụ các module xử lý AI trong phân phân hiệu trường học.
   version: 1.0.0
+  contact:
+    name: Bùi Đình Phúc (Nhóm A2)
+    email: phuc.bd.student@campus.edu.vn
 servers:
   - url: http://localhost:4010/api/v1
     description: Prism Mock Server mặc định cho bài Lab 02
@@ -10,7 +13,10 @@ servers:
 paths:
   /cameras:
     get:
+      tags:
+        - Cameras
       summary: Lấy danh sách toàn bộ Camera
+      operationId: getCamerasList
       description: Trả về danh sách cấu hình và trạng thái của toàn bộ các mắt Camera có trong hệ thống Smart Campus.
       responses:
         '200':
@@ -26,7 +32,10 @@ paths:
 
   /cameras/{cameraId}:
     get:
+      tags:
+        - Cameras
       summary: Lấy thông tin chi tiết một Camera
+      operationId: getCameraById
       description: Tra cứu chi tiết thông số kỹ thuật và trạng thái hoạt động hiện tại của một Camera dựa trên ID.
       parameters:
         - name: cameraId
@@ -50,7 +59,10 @@ paths:
 
   /cameras/{cameraId}/stream:
     post:
+      tags:
+        - Streams
       summary: Khởi tạo phiên truyền luồng Livestream
+      operationId: createStreamSession
       description: Yêu cầu hệ thống bắt đầu đóng gói luồng hình ảnh trực tiếp từ Camera sang giao thức mạng mong muốn và cấp URL truy cập cho bên tiêu thụ.
       parameters:
         - name: cameraId
@@ -94,7 +106,10 @@ paths:
           $ref: '#/components/responses/UnprocessableError'
 
     delete:
+      tags:
+        - Streams
       summary: Tắt luồng Livestream đang hoạt động
+      operationId: deleteStreamSession
       description: Giải phóng tài nguyên phần cứng, hủy phiên encode và ngắt kết nối truyền video trực tiếp của mắt camera cụ thể.
       parameters:
         - name: cameraId
