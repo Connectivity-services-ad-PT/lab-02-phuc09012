@@ -1,0 +1,263 @@
+openapi: 3.1.0
+info:
+  title: Smart Campus - Camera Stream Service (Product A)
+  description: API cung cấp dịch vụ quản lý thiết bị Camera và khởi tạo luồng livestream hình ảnh phục vụ các module xử lý AI trong phân hiệu trường học.
+  version: 1.0.0
+servers:
+  - url: http://localhost:4010/api/v1
+    description: Prism Mock Server mặc định cho bài Lab 02
+
+paths:
+  /cameras:
+    get:
+      summary: Lấy danh sách toàn bộ Camera
+      description: Trả về danh sách cấu hình và trạng thái của toàn bộ các mắt Camera có trong hệ thống Smart Campus.
+      responses:
+        '200':
+          description: Thành công. Trả về mảng danh sách Camera.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Camera'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /cameras/{cameraId}:
+    get:
+      summary: Lấy thông tin chi tiết một Camera
+      description: Tra cứu chi tiết thông số kỹ thuật và trạng thái hoạt động hiện tại của một Camera dựa trên ID.
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          description: Mã định danh duy nhất của Camera cần tra cứu (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Thành công. Trả về thông tin chi tiết Camera.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Camera'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /cameras/{cameraId}/stream:
+    post:
+      summary: Khởi tạo phiên truyền luồng Livestream
+      description: Yêu cầu hệ thống bắt đầu đóng gói luồng hình ảnh trực tiếp từ Camera sang giao thức mạng mong muốn và cấp URL truy cập cho bên tiêu thụ.
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          description: Mã định danh của Camera muốn kích hoạt stream
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestedProtocol
+              properties:
+                requestedProtocol:
+                  type: string
+                  enum: [HLS, WebRTC]
+                  description: Giao thức truyền luồng mong muốn nhận diện.
+      responses:
+        '201':
+          description: Khởi tạo phiên stream thành công. Trả về endpoint kết nối.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamSession'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/UnprocessableError'
+
+    delete:
+      summary: Tắt luồng Livestream đang hoạt động
+      description: Giải phóng tài nguyên phần cứng, hủy phiên encode và ngắt kết nối truyền video trực tiếp của mắt camera cụ thể.
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          description: Mã định danh của Camera cần ngắt kết nối stream
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Đã tắt phiên truyền luồng thành công hoặc phiên stream thực tế không tồn tại/đã tắt từ trước.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Stream session closed successfully.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Truyền mã Token xác thực dạng 'Bearer <JWT_TOKEN>' vào Header Authorization.
+
+  schemas:
+    Camera:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - rtspUrl
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 8a9b1c23-23d4-45e6-a7b8-9c0d1e2f3a4b
+        name:
+          type: string
+          example: Camera_Sanh_Toa_A
+        status:
+          type: string
+          enum: [active, inactive, error]
+          example: active
+        rtspUrl:
+          type: string
+          example: rtsp://admin:password@10.20.30.101:554/stream1
+        description:
+          type: [string, "null"]
+          description: Mô tả vị trí chi tiết (Cho phép nhận giá trị null tường minh).
+          example: Nằm ở cửa ra vào chính hướng Đông, tòa nhà A.
+        location:
+          type: string
+          example: Tòa nhà A - Sảnh chính
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-20T08:30:00Z
+
+    StreamSession:
+      type: object
+      required:
+        - sessionId
+        - cameraId
+        - streamUrl
+        - protocol
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          example: f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+        cameraId:
+          type: string
+          format: uuid
+          example: 8a9b1c23-23d4-45e6-a7b8-9c0d1e2f3a4b
+        streamUrl:
+          type: string
+          example: http://cdn.smartcampus.com/live/stream_cam_A.m3u8
+        protocol:
+          type: string
+          enum: [HLS, WebRTC]
+          example: HLS
+        expiresAt:
+          type: string
+          format: date-time
+          example: 2026-05-20T10:30:00Z
+        bitrateKbps:
+          type: integer
+          example: 2048
+
+    ProblemDetails:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+      description: Cấu trúc thông tin phản hồi lỗi chuẩn RFC 7807 (Problem Details).
+      properties:
+        type:
+          type: string
+          format: uri
+          example: https://api.smartcampus.com/errors/not-found
+        title:
+          type: string
+          example: Resource Not Found
+        status:
+          type: integer
+          example: 404
+        detail:
+          type: string
+          example: The requested camera identifier was not found in the database system.
+        instance:
+          type: string
+          example: /api/v1/cameras/8a9b1c23-23d4-45e6-a7b8-9c0d1e2f3a4b
+
+  responses:
+    BadRequestError:
+      description: Dữ liệu Payload truyền lên không đúng định dạng.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnauthorizedError:
+      description: Chưa xác thực hoặc Token truyền lên hết hạn/không chính xác.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ForbiddenError:
+      description: Đã xác thực nhưng tài khoản không có quyền hạn truy cập thiết bị này.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFoundError:
+      description: Không tìm thấy đối tượng yêu cầu dựa trên thông tin ID cung cấp.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ConflictError:
+      description: Xung đột nghiệp vụ (Ví dụ phiên Livestream cho Camera này đã được bật từ trước).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnprocessableError:
+      description: Đúng cấu trúc JSON nhưng giá trị truyền vào không hợp lệ logic.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+security:
+  - BearerAuth: []
